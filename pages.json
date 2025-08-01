@@ -1,0 +1,51 @@
+{
+	"pages": [{
+		"path": "pages/index/index",
+		"style": {
+			"navigationBarTitleText": "BBD 仓库小助手"
+		}
+	},
+	{
+		"path" : "pages/warehouse-inbound/inspect/inspect",
+		"style" : 
+		{
+			"navigationBarTitleText" : "入库拍照"
+		}
+	},{
+		"path" : "pages/warehouse-inbound/receive/receive",
+		"style" : 
+		{
+			"navigationBarTitleText" : "入库收货"
+		}
+	},{
+		"path" : "pages/warehouse-inbound/shelve/shelve",
+		"style" : 
+		{
+			"navigationBarTitleText" : "入库上架"
+		}
+	},
+	{
+		"path" : "pages/login/login",
+		"style" : 
+		{
+			"navigationBarTitleText" : "登录"
+		}
+	},
+	{
+		"path" : "pages/devpage/devpage",
+		"style" : 
+		{
+			"navigationBarTitleText" : ""
+		}
+	}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "BBD 仓库小助手",
+		"navigationBarBackgroundColor": "#f0700c",
+		"backgroundColor": "#F8F8F8",
+		"app-plus": {
+			"background": "#efeff4"
+		}
+	}
+}
