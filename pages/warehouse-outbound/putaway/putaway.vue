@@ -72,12 +72,12 @@
           暂无包裹
         </view>
 
-        <view v-for="item in packageList" :key="item.packageCode" class="item">
+        <view v-for="item in packageList" :key="item.packingPackageCode" class="item">
           <view class="item-left">
-            <view class="item-code">{{ item.packageCode }}</view>
+            <view class="item-code">{{ item.packingPackageCode }}</view>
             <view class="item-status">{{ item.putawayStatus || '未知状态' }}</view>
           </view>
-          <button class="btn-delete" @click="deletePackage(item.packageCode)">
+          <button class="btn-delete" @click="deletePackage(item.packingPackageCode)">
             删除
           </button>
         </view>
@@ -108,7 +108,7 @@ const loading = ref(false);
 
 const shelfInputRef = ref(null);
 const packageInputRef = ref(null);
-import { getShelveScan,submitShelveConfirm} from '@/services/warehouse-inbound'
+import { getPutawayScan,submitPutawayConfirm} from '@/services/warehouse-outbound'
 
 const clearShelfCode = async () => {
   shelfCode.value = "";
@@ -171,13 +171,15 @@ const onPackageConfirm = async () => {
 
   try {
 	  console.log('val',val);
-    const res = await getShelveScan(val);
+    const res = await getPutawayScan(val);
 	console.log('res',res);
     if (res.data === "WMS_PUTAWAY_SCAN_UNKNOWN_PACKAGE_CODE") {
       uni.showToast({ title: "未知包裹", icon: "none" });
     } else {
-      uni.showToast({ title: "成功获取包裹信息" , icon: "none"});
-      packageList.value.unshift(res.data);
+      uni.showToast({ title: res.msg , icon: "none"});
+	  if(res.data){
+		  packageList.value.unshift(res.data);
+	  }
     }
   } catch {
     uni.showToast({ title: "读取包裹信息失败", icon: "none" });
@@ -186,7 +188,7 @@ const onPackageConfirm = async () => {
 };
 
 const deletePackage = (code) => {
-  packageList.value = packageList.value.filter((item) => item.packageCode !== code);
+  packageList.value = packageList.value.filter((item) => item.packingPackageCode !== code);
 };
 
 const onSubmit = async () => {
@@ -201,11 +203,14 @@ const onSubmit = async () => {
 
   loading.value = true;
   try {
-    const res = await submitShelveConfirm({
+    const res = await submitPutawayConfirm ({
       locationCode: shelfCode.value,
-      packageCodeList: packageList.value.map((p) => p.packageCode),
+      packingPackageCodeList: packageList.value.map((p) => p.packingPackageCode),
     });
-	console.log('res',res);
+	console.log('res',{
+      locationCode: shelfCode.value,
+      packingPackageCodeList: packageList.value.map((p) => p.packingPackageCode),
+    },res);
     if (res.success) {
       uni.showToast({ title: "上架成功" });
       shelfCode.value = "";
@@ -217,7 +222,8 @@ const onSubmit = async () => {
     } else {
       uni.showToast({ title: res.msg, icon: "none" });
     }
-  } catch {
+  } catch(err) {
+	  console.log('err',err);
     uni.showToast({ title: "提交失败", icon: "none" });
   }
   loading.value = false;

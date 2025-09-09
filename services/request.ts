@@ -1,6 +1,5 @@
-// const baseURL = 'http://api.bbdtest.local:8080'
-// export const baseURL = 'http://192.168.1.191:8080'
-export const baseURL = 'https://demo.bbdbuy.com/admin-api'
+export const baseURL = 'http://192.168.1.191:8080'
+// export const baseURL = 'https://demo.bbdbuy.com/admin-api'
 
 export function request<T>(options: UniApp.RequestOptions): Promise<T> {
 	 const cookie = uni.getStorageSync('cookie') || '';
@@ -39,6 +38,7 @@ export function request<T>(options: UniApp.RequestOptions): Promise<T> {
       },
 	  
        fail: (err) => {
+		   console.log('url',baseURL + options.url);
 		   uni.hideLoading();
               // ✅ 判断是否为超时
               if (err.errMsg?.includes('timeout')) {

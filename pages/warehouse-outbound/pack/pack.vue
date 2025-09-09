@@ -1,30 +1,17 @@
 <template>
 	<view class="container">
 		<view class="input-wrapper">
-			<input v-model="code" placeholder="请输入条码或扫码" class="input" @input="onInputChange" confirm-type="search" @confirm="onInputConfirm" />
+			<input v-model="code" placeholder="请输入拣货单号" class="input" @input="onInputChange" confirm-type="search" @confirm="onInputConfirm" />
 			<uni-icons type="scan" size="28" color="#f0700c" class="scan-icon" @click="startScan" />
 		</view>
 		<view v-if="error" class="error-text">{{ error }}</view>
-		<view v-if="packageInfo" class="package-card" scroll-y>
-			<!-- 商品信息：左右布局 -->
-			<view class="package-content">
-				<!-- 左边图片 -->
-				<image class="package-image" :src="packageInfo?.skuPicUrl || packageInfo?.picUrl" mode="aspectFill"></image>
-				<!-- 右边文字 -->
-				<view class="package-info">
-					<view class="package-title">{{ packageInfo.productTitle }}</view>
-					<view class="package-detail">
-						<view>数量: {{ packageInfo.quantity }}</view>
-						<view>{{ packageInfo.sku?.propName_valueName }}</view>
-					</view>
-				</view>
-			</view>
+		<view class="package-card" scroll-y>
 			<!-- 👇 服务拍照区域 -->
 			<view class="service-photo-wrapper">
 				<view v-for="(service, idx) in services" :key="idx" class="service-block">
 					<view class="service-header">
 						<text class="service-name">{{ service?.serviceName }}</text>
-						<view class="" style="display: flex; gap: 8rpx">
+						<view class="" style="display: flex;gap: 8rpx;">
 							<button class="photo-btn" @tap="handleTakePhoto(idx)">
 								<text class="icon-camera">📷</text>
 								照片
@@ -36,46 +23,34 @@
 						</view>
 					</view>
 					<view class="photo-list">
-						<view
-						  v-for="(file, fileIdx) in serviceImages[idx] || []"
-						  :key="fileIdx"
-						  class="photo-item"
-						>
-						  <!-- 图片 -->
-						  <image
-						    v-if="file.fileType && file.fileType.startsWith('image/')"
-						    :src="file.fileUrl"
-						    class="photo-thumb"
-						    mode="aspectFill"
-						    @tap="previewImage(file.fileUrl, idx)"
-						  />
-						
-						 <!-- 视频 -->
-						  <video
-						    v-else-if="file.fileType && file.fileType.startsWith('video/')"
-						    :src="file.fileUrl"
-						    class="video-thumb"
-						    controls
-						    :id="'video_' + idx"
-						  >
-						    <!-- 这里必须用 cover-view 才能显示在视频上 -->
-						    <cover-view class="photo-delete" @tap.stop="handleRemoveImage(file.id, idx)">✖</cover-view>
-						  </video>
-						
-						  <!-- 删除按钮 (无论图片还是视频都有) -->
-						  <text
-						    class="photo-delete"
-						    @tap="handleRemoveImage(file.id, idx)"
-						  >
-						    ✖
-						  </text>
+						<view v-for="(file, fileIdx) in serviceImages[idx] || []" :key="fileIdx" class="photo-item">
+							<!-- 图片 -->
+							<image
+								v-if="file.fileType && file.fileType.startsWith('image/')"
+								:src="file.fileUrl"
+								class="photo-thumb"
+								mode="aspectFill"
+								@tap="previewImage(file.fileUrl, idx)"
+							/>
+
+							<!-- 视频 -->
+							<video
+							  v-else-if="file.fileType && file.fileType.startsWith('video/')"
+							  :src="file.fileUrl"
+							  class="video-thumb"
+							  controls
+							  :id="'video_' + idx"
+							/>
+
+							<!-- 删除按钮 -->
+							<text class="photo-delete" @tap="handleRemoveImage(file.id, idx)">✖</text>
 						</view>
 					</view>
 				</view>
 			</view>
 		</view>
 		<!-- 底部固定提交按钮 -->
-		<view class="submit-wrapper" v-if="packageInfo">
+		<view class="submit-wrapper">
 			<button :disabled="loading" @click="handleSubmit" class="submit-btn">
 				{{ loading ? '提交中...' : '提交拍照完成' }}
 			</button>
@@ -85,7 +60,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { getInspectScan, getInspectScanPhoto, detInspectScanPhoto, uploadImage, submitInspectConfirm } from '@/services/warehouse-inbound';
+import { getPackScan, getPackScanPhoto, detPackScanPhoto,submitPackConfirm } from '@/services/warehouse-outbound';
 import { baseURL } from '@/services/request';
 const code = ref('');
 const loading = ref(false);
@@ -93,6 +68,7 @@ const error = ref('');
 const packageInfo = ref(null);
 const services = ref(null);
 const serviceImages = ref({});
+
 function startScan() {
 	uni.scanCode({
 		success: (res) => {
@@ -129,21 +105,20 @@ function onInputConfirm() {
 }
 async function queryPackageInfo(barcode) {
 	try {
-		const res = await getInspectScan(barcode);
-		console.log('res', res);
+		const res = await getPackScan(barcode);
 		if (res.success) {
 			const data = res.data;
-			packageInfo.value = res.data?.packageItem?.orderProduct;
-			services.value = res.data?.inboundServiceItemList;
-			console.log('resPackageInfo', res);
-			for (let i = 0; i < res.data?.inboundServiceItemList?.length; i++) {
-				const item = res.data?.inboundServiceItemList[i];
+			console.log('services', res.data?.services);
+			services.value = res.data?.services;
+			for (let i = 0; i < res.data?.services?.length; i++) {
+				const item = res.data?.services[i];
 				await fetchPhotos(i, item);
 			}
 		} else {
 			uni.showToast({ title: res.msg, icon: 'none' });
 		}
 	} catch (err) {
+		console.log(err);
 		uni.showToast({ title: '扫描失败，请重试', icon: 'none' });
 	}
 }
@@ -151,7 +126,8 @@ async function queryPackageInfo(barcode) {
 async function fetchPhotos(serviceIdx, item = {}) {
 	const service = services.value[serviceIdx] || item;
 	if (!service?.id) return;
-	const res = await getInspectScanPhoto(service.id);
+	const res = await getPackScanPhoto(service.id);
+	console.log('resp', res);
 	if (res.success) {
 		serviceImages.value = {
 			...serviceImages.value,
@@ -175,21 +151,18 @@ const handleRemoveImage = async (imgId, serviceIdx) => {
 		uni.showToast({ title: '无效的图片 ID', icon: 'none' });
 		return;
 	}
-
 	const resConfirm = await uni.showModal({
 		title: '确认删除',
 		content: '确定要删除这张照片吗？',
 		confirmText: '删除',
 		cancelText: '取消'
 	});
-
 	if (!resConfirm.confirm) {
 		// 用户取消删除
 		return;
 	}
-
 	try {
-		const res = await detInspectScanPhoto(imgId);
+		const res = await detPackScanPhoto(imgId);
 		console.log('res', res);
 		if (res?.success) {
 			uni.showToast({ title: res.msg || '删除成功', icon: 'success' });
@@ -210,12 +183,9 @@ const handleTakePhoto = async (serviceIdx) => {
 			sizeType: ['original', 'compressed'],
 			sourceType: ['camera']
 		});
-
 		if (!res.tempFiles || res.tempFiles.length === 0) return;
-
 		let file = res.tempFiles[0];
 		let filePath = file.path;
-
 		if (file.size > 1024 * 1024) {
 			try {
 				const compressRes = await uni.compressImage({
@@ -228,13 +198,11 @@ const handleTakePhoto = async (serviceIdx) => {
 				uni.showToast({ title: '图片压缩失败，将尝试上传原图', icon: 'none' });
 			}
 		}
-
 		// 🔄 显示 loading 提示
 		uni.showLoading({ title: '上传中...', mask: true });
-
 		const uploadTask = await new Promise((resolve, reject) => {
 			uni.uploadFile({
-				url: baseURL + '/inbound-service/upload',
+				url: baseURL + '/outbound-service/upload',
 				filePath,
 				name: 'file',
 				header: {
@@ -263,7 +231,6 @@ const handleTakePhoto = async (serviceIdx) => {
 				}
 			});
 		});
-
 		await fetchPhotos(serviceIdx);
 		uni.showToast({ title: '上传成功', icon: 'success' });
 	} catch (err) {
@@ -274,7 +241,6 @@ const handleTakePhoto = async (serviceIdx) => {
 		uni.hideLoading();
 	}
 };
-
 
 const handleTakeVideo = async (serviceIdx) => {
 	try {
@@ -302,7 +268,7 @@ const handleTakeVideo = async (serviceIdx) => {
 		// 4️⃣ 上传视频
 		await new Promise((resolve, reject) => {
 			uni.uploadFile({
-				url: baseURL + '/inbound-service/upload',
+				url: baseURL + '/outbound-service/upload',
 				filePath,
 				name: 'file',
 				header: {
@@ -352,17 +318,15 @@ const handleSubmit = async () => {
 	try {
 		loading.value = true;
 		console.log('serviceIds', serviceIds);
-		const res = await submitInspectConfirm({ idList: serviceIds });
-		console.log('handleSubmit', res);
+		const res = await submitPackConfirm({idList:serviceIds});
 		if (res.success) {
 			uni.showToast({
-				title: '提交拍照成功',
+				title: '提交拍照完成 ',
 				icon: 'success'
 			});
 			// 这里可以清空数据或跳转，比如：
-			code.value = '';
-			packageInfo.value = null;
 			services.value = [];
+			code.value = ''
 		} else {
 			uni.showToast({
 				title: `提交失败：${res?.msg || ''}`,
@@ -526,6 +490,7 @@ const handleSubmit = async () => {
 	user-select: none;
 	z-index: 10;
 }
+
 /* 底部提交按钮 */
 .submit-wrapper {
 	flex-shrink: 0;

@@ -46,12 +46,10 @@ const groupedItems = reactive([
   {
     title: '📤 出库',
     items: [
-      // { label: '拣货', icon: '🛒', path: '/pages/warehouse-outbound/pick' },
-      // { label: '打包拍照', icon: '✅', path: '/pages/warehouse-outbound/pack' },
-      // { label: '出库', icon: '🎁', path: '/pages/warehouse-outbound/ship' },
-	  { label: '拣货', icon: '🛒', path: '/pages/devpage/devpage' },
-	  { label: '打包拍照', icon: '✅', path: '/pages/devpage/devpage' },
-	  { label: '出库', icon: '🎁', path: '/pages/devpage/devpage' },
+      { label: '拣货', icon: '🛒', path: '/pages/warehouse-outbound/pick/pick' },
+      { label: '拍照', icon: '📷', path: '/pages/warehouse-outbound/pack/pack' },
+	  { label: '上架', icon: '📥', path: '/pages/warehouse-outbound/putaway/putaway' },
+	   { label: '发货', icon: '🚚', path: '/pages/warehouse-outbound/send/send' },
     ],
   },
   {
@@ -59,8 +57,8 @@ const groupedItems = reactive([
     items: [
       // { label: '库存盘点', icon: '📋', path: '/pages/warehouse-tools/inventory' },
       // { label: '异常处理', icon: '⚠️', path: '/pages/warehouse-tools/exceptions' },
-	  { label: '库存盘点', icon: '📋', path: '/pages/devpage/devpage' },
-	  { label: '异常处理', icon: '⚠️', path: '/pages/devpage/devpage' },
+	  // { label: '库存盘点', icon: '📋', path: '/pages/devpage/devpage' },
+	  // { label: '异常处理', icon: '⚠️', path: '/pages/devpage/devpage' },
       { label: '退出登录', icon: '🚪', action: 'logout' },
     ],
   },
@@ -86,15 +84,6 @@ function handleItemClick(item) {
 }
 
 
-// // 模拟登出接口，真实使用请替换
-// async function outLogin() {
-//   return new Promise((resolve) => {
-//     setTimeout(() => {
-//       uni.showToast({ title: '已退出登录', icon: 'success' })
-//       resolve()
-//     }, 800)
-//   })
-// }
 
 onMounted(async () => {
   const res = await getUserInfo()

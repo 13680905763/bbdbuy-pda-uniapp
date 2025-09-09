@@ -25,6 +25,34 @@
 		}
 	},
 	{
+		"path" : "pages/warehouse-outbound/pick/pick",
+		"style" : 
+		{
+			"navigationBarTitleText" : "出库拣货"
+		}
+	},
+	{
+		"path" : "pages/warehouse-outbound/pack/pack",
+		"style" : 
+		{
+			"navigationBarTitleText" : "出库拍照"
+		}
+	},
+	{
+		"path" : "pages/warehouse-outbound/putaway/putaway",
+		"style" : 
+		{
+			"navigationBarTitleText" : "出库上架"
+		}
+	},
+	{
+		"path" : "pages/warehouse-outbound/send/send",
+		"style" : 
+		{
+			"navigationBarTitleText" : "出库发货"
+		}
+	},
+	{
 		"path" : "pages/login/login",
 		"style" : 
 		{

@@ -4,18 +4,8 @@
     <view class="login-box">
       <text class="title">BBD 仓库小助手</text>
 
-      <input
-        v-model="form.mobile"
-        type="text"
-        placeholder="请输入手机号"
-        class="input"
-      />
-      <input
-        v-model="form.password"
-        type="password"
-        placeholder="请输入密码"
-        class="input"
-      />
+      <input v-model="form.mobile" type="text" placeholder="请输入手机号" class="input" />
+      <input v-model="form.password" type="password" placeholder="请输入密码" class="input" />
 
       <button class="login-button" @click="onLogin">登录</button>
 
@@ -32,7 +22,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { login } from '@/services/auth'
 import { baseURL } from '@/services/request'
 const form = ref({
-  mobile: '19245683654',
+  mobile: 'admin',
   password: '123456',
 })
 
@@ -40,56 +30,56 @@ const onLogin = async () => {
   if (!form.value.mobile || !form.value.password) {
     return uni.showToast({ title: '请输入手机号和密码', icon: 'none' })
   }
-uni.request({
-      url: baseURL+'/users/login',
-      method: 'POST',
-      data:form.value,
-      header: {
-        'Content-Type': 'application/json',
-        'X-Language': 'en',
-        'X-Currency': 'USD',
-        'X-Timezone': 'Asia/Shanghai',
-      },
-      success: (res) => {
-        if (res.statusCode === 200) {
-            const setCookie = res.header['Set-Cookie'];
-              console.log('Set-Cookie:', setCookie);
-          
-              // 存入本地缓存
-              if (setCookie) {
-                uni.setStorageSync('cookie', setCookie);
-              }
-              uni.showToast({ title: '登录成功', icon: 'success' });
-			  uni.reLaunch({ url: '/pages/index/index' })
-        } else {
-          uni.showToast({
-            title: '登录失败',
-            icon: 'none',
-          });
+  uni.request({
+    url: baseURL + '/users/login',
+    method: 'POST',
+    data: form.value,
+    header: {
+      'Content-Type': 'application/json',
+      'X-Language': 'en',
+      'X-Currency': 'USD',
+      'X-Timezone': 'Asia/Shanghai',
+    },
+    success: (res) => {
+      console.log('res', res);
+      if (res.data.success) {
+        const setCookie = res.header['Set-Cookie'];
+        console.log('Set-Cookie:', setCookie);
+        // 存入本地缓存
+        if (setCookie) {
+          uni.setStorageSync('cookie', setCookie);
+          uni.showToast({ title: '登录成功', icon: 'success' });
+          uni.reLaunch({ url: '/pages/index/index' })
         }
-      },
-      fail: (err) => {
+      } else {
         uni.showToast({
-          title: '网络异常',
+          title: res.data.msg,
           icon: 'none',
         });
-        reject(err);
-      },
-    });
+      }
+    },
+    fail: (err) => {
+      uni.showToast({
+        title: '网络异常',
+        icon: 'none',
+      });
+      reject(err);
+    },
+  });
 
 
 
 
 
-//   // 示例登录请求，可替换为你实际的登录接口
-//   const res =   await login(form.value)
-// console.log('res',res);
-//   if (res.success) {
-//     uni.showToast({ title: '登录成功', icon: 'success' })
-//     // uni.reLaunch({ url: '/pages/index/index' })
-//   } else {
-//     uni.showToast({ title: res.data.message || '登录失败', icon: 'none' })
-//   }
+  //   // 示例登录请求，可替换为你实际的登录接口
+  //   const res =   await login(form.value)
+  // console.log('res',res);
+  //   if (res.success) {
+  //     uni.showToast({ title: '登录成功', icon: 'success' })
+  //     // uni.reLaunch({ url: '/pages/index/index' })
+  //   } else {
+  //     uni.showToast({ title: res.data.message || '登录失败', icon: 'none' })
+  //   }
 }
 
 const onForgotPassword = () => {

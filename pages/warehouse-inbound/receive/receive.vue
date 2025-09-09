@@ -23,16 +23,18 @@
     </view>
 
     <!-- 中间包裹列表，撑满剩余空间并可滚动 -->
-    <scroll-view class="list-container" scroll-y>
-      <view
-        v-for="item in list"
-        :key="item.barcode"
-        :class="['list-item', item.type === 1 ? 'type-ok' : 'type-unknown']"
-      >
-        <text class="item-name">{{ item.name }}</text>
-        <text class="item-barcode">{{ item.barcode }}</text>
-      </view>
-    </scroll-view>
+<scroll-view class="list-container" scroll-y>
+  <view
+    v-for="item in list"
+    :key="item.barcode"
+    :class="['list-item', item.type === 1 ? 'type-ok' : 'type-unknown']"
+  >
+    <text class="item-name">{{ item.name }}</text>
+    <text class="item-barcode">{{ item.barcode }}</text>
+    <!-- 删除按钮 -->
+    <text class=" item-delete" @click="removeItem(item.barcode)">删除</text>
+  </view>
+</scroll-view>
 
     <!-- 底部提交按钮 -->
     <view class="submit-wrapper">
@@ -53,7 +55,10 @@ import { getReceiveScan,receiveSubmit } from '@/services/warehouse-inbound'
 const barcodeInput = ref("");
 const list = ref([]);
 const loading = ref(false);
-
+function removeItem(barcode) {
+  list.value = list.value.filter((item) => item.barcode !== barcode);
+  uni.showToast({ title: "已删除", icon: "none" });
+}
 function startScan() {
   uni.scanCode({
     success: (res) => {
@@ -80,19 +85,20 @@ async function handleScan(barcode) {
   try {
     // 调用真实接口
     const res = await getReceiveScan(barcode);
-
+console.log('扫描快递单号res',res);
     if (res.data === "WMS_RECEIVE_SCAN_UNKNOWN_LOGISTICS_CODE") {
       uni.showToast({ title: "未知物流", icon: "none" });
       list.value.unshift({ name: "未知物流", barcode, type: 0 });
     } else {
-      uni.showToast({ title: "成功获取物流信息", icon: "success" });
+      uni.showToast({ title: "读取物流成功", icon: "success" });
       list.value.unshift({
-        name: res.data.logisticsCompany,
-        barcode: res.data.logisticsCode,
+        name: res.data[0].logisticsCompany,
+        barcode: res.data[0].logisticsCode,
         type: 1,
       });
     }
   } catch (e) {
+	  console.log('err',e);
     uni.showToast({ title: "请求失败", icon: "none" });
   }
 }
@@ -193,7 +199,13 @@ async function handleSubmit() {
   font-size: 16px;
   background-color: #fff;
 }
-
+.item-delete{
+	border: 1px solid #ddd;
+	padding: 8px;
+}
+.item-delete:hover {
+  color: red;
+}
 .item-name,
 .item-barcode {
   flex: 2;
