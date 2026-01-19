@@ -1,7 +1,8 @@
 <template>
 	<view class="container">
 		<view class="input-wrapper">
-			<input v-model="code" placeholder="请输入条码或扫码" class="input" @input="onInputChange" confirm-type="search" @confirm="onInputConfirm" />
+			<input v-model="code" placeholder="请输入条码或扫码" class="input" @input="onInputChange" confirm-type="search"
+				@confirm="onInputConfirm" />
 			<uni-icons type="scan" size="28" color="#f0700c" class="scan-icon" @click="startScan" />
 		</view>
 		<view v-if="error" class="error-text">{{ error }}</view>
@@ -9,13 +10,14 @@
 			<!-- 商品信息：左右布局 -->
 			<view class="package-content">
 				<!-- 左边图片 -->
-				<image class="package-image" :src="packageInfo?.skuPicUrl || packageInfo?.picUrl" mode="aspectFill"></image>
+				<image class="package-image" :src="packageInfo?.skuPicUrl || packageInfo?.picUrl" mode="aspectFill">
+				</image>
 				<!-- 右边文字 -->
 				<view class="package-info">
 					<view class="package-title">{{ packageInfo.productTitle }}</view>
 					<view class="package-detail">
 						<view>数量: {{ packageInfo.quantity }}</view>
-						<view>{{ packageInfo.sku?.propName_valueName }}</view>
+						<view>{{ packageInfo?.propAndValue?.propName_valueName }}</view>
 					</view>
 				</view>
 			</view>
@@ -23,7 +25,10 @@
 			<view class="service-photo-wrapper">
 				<view v-for="(service, idx) in services" :key="idx" class="service-block">
 					<view class="service-header">
-						<text class="service-name">{{ service?.serviceName }}</text>
+						<text class="service-name">
+							{{ service?.serviceName }}
+							<text class="qty">×{{ service?.quantity }}</text>
+						</text>
 						<view class="" style="display: flex; gap: 8rpx">
 							<button class="photo-btn" @tap="handleTakePhoto(idx)">
 								<text class="icon-camera">📷</text>
@@ -36,39 +41,20 @@
 						</view>
 					</view>
 					<view class="photo-list">
-						<view
-						  v-for="(file, fileIdx) in serviceImages[idx] || []"
-						  :key="fileIdx"
-						  class="photo-item"
-						>
-						  <!-- 图片 -->
-						  <image
-						    v-if="file.fileType && file.fileType.startsWith('image/')"
-						    :src="file.fileUrl"
-						    class="photo-thumb"
-						    mode="aspectFill"
-						    @tap="previewImage(file.fileUrl, idx)"
-						  />
-						
-						 <!-- 视频 -->
-						  <video
-						    v-else-if="file.fileType && file.fileType.startsWith('video/')"
-						    :src="file.fileUrl"
-						    class="video-thumb"
-						    controls
-						    :id="'video_' + idx"
-						  >
-						    <!-- 这里必须用 cover-view 才能显示在视频上 -->
-						    <cover-view class="photo-delete" @tap.stop="handleRemoveImage(file.id, idx)">✖</cover-view>
-						  </video>
-						
-						  <!-- 删除按钮 (无论图片还是视频都有) -->
-						  <text
-						    class="photo-delete"
-						    @tap="handleRemoveImage(file.id, idx)"
-						  >
-						    ✖
-						  </text>
+						<view v-for="(file, fileIdx) in serviceImages[idx] || []" :key="fileIdx" class="photo-item">
+							<!-- 图片 -->
+							<image v-if="file.fileType && file.fileType.startsWith('image/')" :src="file.fileUrl"
+								class="photo-thumb" mode="aspectFill" @tap="previewImage(file.fileUrl, idx)" />
+							<!-- 视频 -->
+							<video v-else-if="file.fileType && file.fileType.startsWith('video/')" :src="file.fileUrl"
+								class="video-thumb" controls :id="'video_' + idx">
+								<cover-view class="photo-delete"
+									@tap="(e) => handleRemoveImage(e, file.id, idx)">✖</cover-view>
+							</video>
+							<!-- 删除按钮 (无论图片还是视频都有) -->
+							<text class="photo-delete" @tap="(e) => handleRemoveImage(e, file.id, idx)">
+								✖
+							</text>
 						</view>
 					</view>
 				</view>
@@ -170,7 +156,11 @@ function previewImage(currentUrl, serviceIndex) {
 	});
 }
 
-const handleRemoveImage = async (imgId, serviceIdx) => {
+const handleRemoveImage = async (e, imgId, serviceIdx) => {
+	if (e && typeof e.stopPropagation === 'function') {
+		e.stopPropagation();
+	}
+	console.log('imgId', imgId);
 	if (!imgId) {
 		uni.showToast({ title: '无效的图片 ID', icon: 'none' });
 		return;
@@ -203,37 +193,38 @@ const handleRemoveImage = async (imgId, serviceIdx) => {
 	}
 };
 
-const handleTakePhoto = async (serviceIdx) => {
-	try {
-		const res = await uni.chooseImage({
-			count: 1,
-			sizeType: ['original', 'compressed'],
-			sourceType: ['camera']
-		});
+const processUploads = async (files, serviceIdx, isSilent = false) => {
+	if (!files || files.length === 0) return;
 
-		if (!res.tempFiles || res.tempFiles.length === 0) return;
+	if (!isSilent) {
+		uni.showLoading({ title: '准备上传...', mask: true });
+	} else {
+		uni.showToast({ title: '后台上传中...', icon: 'none' });
+	}
 
-		let file = res.tempFiles[0];
+	// 单张上传逻辑
+	const uploadSingle = async (file, index, total) => {
 		let filePath = file.path;
 
+		// 压缩大图
 		if (file.size > 1024 * 1024) {
 			try {
 				const compressRes = await uni.compressImage({
 					src: filePath,
-					quality: 80
+					quality: 80,
 				});
 				filePath = compressRes.tempFilePath;
 			} catch (err) {
 				console.error('图片压缩失败:', err);
-				uni.showToast({ title: '图片压缩失败，将尝试上传原图', icon: 'none' });
 			}
 		}
 
-		// 🔄 显示 loading 提示
-		uni.showLoading({ title: '上传中...', mask: true });
+		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject({ errMsg: 'upload timeout' });
+			}, 20000); // 20秒超时保护
 
-		const uploadTask = await new Promise((resolve, reject) => {
-			uni.uploadFile({
+			const uploadTask = uni.uploadFile({
 				url: baseURL + '/inbound-service/upload',
 				filePath,
 				name: 'file',
@@ -241,105 +232,230 @@ const handleTakePhoto = async (serviceIdx) => {
 					'X-Language': 'en',
 					'X-Currency': 'USD',
 					'X-Timezone': 'Asia/Shanghai',
-					Cookie: uni.getStorageSync('cookie') || ''
+					Cookie: uni.getStorageSync('cookie') || '',
 				},
 				formData: {
 					id: String(services.value[serviceIdx]?.id || ''),
-					sort: String(serviceIdx)
+					sort: String(serviceIdx),
 				},
-				success: (uploadRes) => {
-					let data = uploadRes.data;
+				success: (res) => {
+					clearTimeout(timeout);
+					let data = res.data;
 					try {
 						data = JSON.parse(data);
-					} catch {}
-					if (data.success) {
-						resolve(data);
-					} else {
-						reject(data);
-					}
+					} catch { }
+					data.success ? resolve(data) : reject(data);
 				},
 				fail: (err) => {
+					clearTimeout(timeout);
 					reject(err);
-				}
+				},
 			});
+
+			// 显示上传进度
+			if (!isSilent) {
+				uploadTask.onProgressUpdate((progress) => {
+					const msg = `第 ${index + 1}/${total} 张：${progress.progress}%`;
+					uni.showLoading({ title: msg });
+					console.log(msg);
+				});
+			}
+		});
+	};
+
+	// 自动重试 + 顺序上传（让进度更清晰）
+	const results = [];
+	const total = files.length;
+
+	for (let i = 0; i < total; i++) {
+		try {
+			const result = await uploadSingle(files[i], i, total);
+			results.push({ status: 'fulfilled', value: result });
+		} catch (err) {
+			console.warn(`第 ${i + 1} 张上传失败:`, err);
+			// 自动重试一次
+			try {
+				const retryResult = await uploadSingle(files[i], i, total);
+				results.push({ status: 'fulfilled', value: retryResult });
+			} catch (retryErr) {
+				console.error(`第 ${i + 1} 张重试失败:`, retryErr);
+				results.push({ status: 'rejected', reason: retryErr });
+			}
+		}
+	}
+
+	// 统计结果
+	const successCount = results.filter(r => r.status === 'fulfilled').length;
+	const failCount = results.length - successCount;
+
+	await fetchPhotos(serviceIdx);
+
+	// 提示
+	if (!isSilent) {
+		uni.hideLoading();
+		if (failCount === 0) {
+			uni.showToast({ title: `成功上传 ${successCount} 张`, icon: 'success' });
+		} else {
+			uni.showToast({
+				title: `上传完成：成功 ${successCount} 张，失败 ${failCount} 张`,
+				icon: 'none',
+			});
+		}
+	} else {
+		if (failCount === 0) {
+			uni.showToast({ title: '后台上传成功', icon: 'success' });
+		} else {
+			uni.showToast({ title: '后台上传部分失败', icon: 'none' });
+		}
+	}
+};
+
+const runCameraLoop = async (serviceIdx) => {
+	try {
+		const res = await uni.chooseImage({
+			count: 1,
+			sizeType: ['original', 'compressed'],
+			sourceType: ['camera'],
 		});
 
-		await fetchPhotos(serviceIdx);
-		uni.showToast({ title: '上传成功', icon: 'success' });
+		if (res.tempFiles && res.tempFiles.length > 0) {
+			// 后台上传
+			processUploads(res.tempFiles, serviceIdx, true);
+			// 递归调用相机
+			runCameraLoop(serviceIdx);
+		}
 	} catch (err) {
-		console.error('拍照或上传失败:', err);
-		uni.showToast({ title: '上传失败，请重试', icon: 'none' });
-	} finally {
-		// ✅ 不论成功失败都隐藏 loading
-		uni.hideLoading();
+		console.log('Camera loop ended', err);
+	}
+};
+
+const handleTakePhoto = async (serviceIdx) => {
+	try {
+		// 1️⃣ 用户选择来源
+		const action = await uni.showActionSheet({
+			itemList: ['拍照', '从相册选择'],
+		});
+
+		if (action.tapIndex === 0) {
+			// 拍照模式：连续拍照 + 后台上传
+			await runCameraLoop(serviceIdx);
+		} else {
+			// 相册模式：原有逻辑
+			const res = await uni.chooseImage({
+				count: 9,
+				sizeType: ['original', 'compressed'],
+				sourceType: ['album'],
+			});
+			if (!res.tempFiles || res.tempFiles.length === 0) return;
+			await processUploads(res.tempFiles, serviceIdx, false);
+		}
+	} catch (err) {
+		console.error('选择图片异常:', err);
+		if (err?.errMsg?.includes('cancel')) {
+			return;
+		}
+		uni.showToast({ title: '操作失败', icon: 'none' });
 	}
 };
 
 
+
 const handleTakeVideo = async (serviceIdx) => {
 	try {
-		// 1️⃣ 拍摄或选择视频
+		// 1️⃣ 选择来源
+		const action = await uni.showActionSheet({
+			itemList: ['拍摄视频', '从相册选择'],
+		});
+		const sourceType = action.tapIndex === 0 ? ['camera'] : ['album'];
+
+		// 2️⃣ 选择或拍摄视频
 		const res = await uni.chooseVideo({
-			sourceType: ['camera', 'album'], // 支持相机拍摄或从相册选
-			maxDuration: 60, // 最长 60 秒
-			// compressed: true // 压缩视频（部分平台支持）
+			sourceType,
+			maxDuration: 60, // 最长60秒
 		});
 
 		if (!res.tempFilePath) return;
 
-		let filePath = res.tempFilePath;
-		let fileSize = res.size || 0; // 单位字节
+		const filePath = res.tempFilePath;
+		const fileSize = res.size || 0;
 
-		// 2️⃣ 视频大小限制（比如 50MB）
+		// 3️⃣ 限制大小
 		if (fileSize > 50 * 1024 * 1024) {
-			uni.showToast({ title: '视频不能超过 50MB', icon: 'none' });
+			uni.showToast({ title: '视频不能超过50MB', icon: 'none' });
 			return;
 		}
 
-		// 3️⃣ 显示上传中
 		uni.showLoading({ title: '视频上传中...', mask: true });
 
-		// 4️⃣ 上传视频
-		await new Promise((resolve, reject) => {
-			uni.uploadFile({
-				url: baseURL + '/inbound-service/upload',
-				filePath,
-				name: 'file',
-				header: {
-					'X-Language': 'en',
-					'X-Currency': 'USD',
-					'X-Timezone': 'Asia/Shanghai',
-					Cookie: uni.getStorageSync('cookie') || ''
-				},
-				formData: {
-					id: String(services.value[serviceIdx]?.id || ''),
-					sort: String(serviceIdx)
-				},
-				success: (uploadRes) => {
-					let data = uploadRes.data;
-					try {
-						data = JSON.parse(data);
-					} catch {}
-					if (data.success) {
-						resolve(data);
-					} else {
-						reject(data);
-					}
-				},
-				fail: (err) => {
-					reject(err);
-				}
-			});
-		});
+		// 4️⃣ 单次上传逻辑
+		const uploadVideo = () => {
+			return new Promise((resolve, reject) => {
+				const timeout = setTimeout(() => reject({ errMsg: 'upload timeout' }), 30000);
 
-		// 5️⃣ 上传完成后刷新数据
+				const uploadTask = uni.uploadFile({
+					url: baseURL + '/inbound-service/upload',
+					filePath,
+					name: 'file',
+					header: {
+						'X-Language': 'en',
+						'X-Currency': 'USD',
+						'X-Timezone': 'Asia/Shanghai',
+						Cookie: uni.getStorageSync('cookie') || '',
+					},
+					formData: {
+						id: String(services.value[serviceIdx]?.id || ''),
+						sort: String(serviceIdx),
+					},
+					success: (uploadRes) => {
+						clearTimeout(timeout);
+						let data = uploadRes.data;
+						try {
+							data = JSON.parse(data);
+						} catch { }
+						data.success ? resolve(data) : reject(data);
+					},
+					fail: (err) => {
+						clearTimeout(timeout);
+						reject(err);
+					},
+				});
+
+				// ✅ 上传进度回调
+				uploadTask.onProgressUpdate((progress) => {
+					uni.showLoading({
+						title: `视频上传中... ${progress.progress}%`,
+						mask: true,
+					});
+					console.log(`视频上传进度: ${progress.progress}%`);
+				});
+			});
+		};
+
+		// 5️⃣ 上传 + 自动重试一次
+		let uploadResult;
+		try {
+			uploadResult = await uploadVideo();
+		} catch (err) {
+			console.warn('视频上传失败，重试中...', err);
+			uploadResult = await uploadVideo();
+		}
+
+		// 6️⃣ 刷新视频列表
 		await fetchPhotos(serviceIdx);
-		uni.showToast({ title: '上传成功', icon: 'success' });
+		uni.hideLoading();
+		uni.showToast({ title: '视频上传成功', icon: 'success' });
 	} catch (err) {
-		console.error('拍摄或上传视频失败:', err);
+		console.error('视频选择/上传出错:', err);
+		uni.hideLoading();
+
+		// 用户主动取消，不提示
+		if (err?.errMsg?.includes('cancel')) {
+			console.log('用户取消视频上传');
+			return;
+		}
+
 		uni.showToast({ title: '上传失败，请重试', icon: 'none' });
 	} finally {
-		// 6️⃣ 关闭 loading
 		uni.hideLoading();
 	}
 };
@@ -384,43 +500,52 @@ const handleSubmit = async () => {
 .container {
 	display: flex;
 	flex-direction: column;
-	height: 100%; /* 满屏高度 */
+	height: 100%;
+	/* 满屏高度 */
 	padding: 20px;
 	box-sizing: border-box;
 }
+
 .input-wrapper {
 	position: relative;
 	display: flex;
 	align-items: center;
 	margin-bottom: 16px;
 }
+
 .input {
 	flex: 1;
 	height: 40px;
-	padding: 0 44px 0 12px; /* 右侧留空间给图标 */
+	padding: 0 44px 0 12px;
+	/* 右侧留空间给图标 */
 	border-radius: 8px;
 	border: 1px solid #f0700c;
 	font-size: 16px;
 	background-color: white;
 }
+
 .scan-icon {
 	position: absolute;
 	right: 12px;
 	cursor: pointer;
 	user-select: none;
 }
+
 .loading-text {
 	color: #f0700c;
 	font-weight: 600;
 	margin-bottom: 12px;
 }
+
 .error-text {
 	color: #e63946;
 	font-weight: 600;
 	margin-bottom: 12px;
 }
+
 .package-card {
-	flex: 1; /* 撑满剩余空间 */
+	flex: 1;
+	/* 撑满剩余空间 */
 	overflow-y: auto;
 	background-color: white;
 	border-radius: 12px;
@@ -478,7 +603,18 @@ const handleSubmit = async () => {
 .service-name {
 	font-size: 28rpx;
 	color: #333;
+	font-weight: 500;
 }
+
+.qty {
+	margin-left: 8rpx;
+	font-size: 34rpx;
+	/* 数量更大 */
+	font-weight: 700;
+	color: #e54d42;
+	/* 红色醒目 */
+}
+
 
 .photo-btn {
 	margin: 0;
@@ -487,6 +623,7 @@ const handleSubmit = async () => {
 	color: #007aff;
 	font-size: 26rpx;
 }
+
 .photo-list {
 	display: flex;
 	flex-wrap: wrap;
@@ -501,14 +638,25 @@ const handleSubmit = async () => {
 	margin-bottom: 8px;
 }
 
+.video-wrapper {
+	position: relative;
+	display: inline-block;
+	width: 200rpx;
+	height: 200rpx;
+}
+
 .photo-thumb {
 	width: 120rpx;
 	height: 120rpx;
 }
+
 .video-thumb {
-  width: 300rpx; /* 或更大 */
-  height: 120rpx; /* 根据比例适配 */
+	width: 300rpx;
+	/* 或更大 */
+	height: 120rpx;
+	/* 根据比例适配 */
 }
+
 .photo-delete {
 	position: absolute;
 	top: 4px;
@@ -526,6 +674,7 @@ const handleSubmit = async () => {
 	user-select: none;
 	z-index: 10;
 }
+
 /* 底部提交按钮 */
 .submit-wrapper {
 	flex-shrink: 0;

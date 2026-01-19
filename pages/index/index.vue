@@ -4,7 +4,10 @@
     <!-- 用户信息展示 -->
     <view class="user-info" v-if="userInfo">
       <image class="avatar" :src="userInfo.avatar || defaultAvatar" mode="aspectFill" />
-      <text class="username">欢迎你，{{ userInfo.name || '用户' }}</text>
+      <view class="user-details">
+        <text class="username">欢迎你，{{ userInfo.name || '用户' }}</text>
+        <view v-if="isDevEnv" class="env-badge">测试环境</view>
+      </view>
     </view>
 
     <view class="content">
@@ -23,8 +26,9 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { getUserInfo } from '../../services/auth'
+import { baseURL, ENV_CONFIG } from '@/services/request'
 // 模拟接口，真实替换成你项目中的接口调用
 
 
@@ -33,6 +37,8 @@ const userInfo = reactive({
   avatar: ''
 })
 const defaultAvatar = '/static/default-avatar.png' // 你项目里放一个默认头像图片
+
+const isDevEnv = computed(() => baseURL === ENV_CONFIG.dev)
 
 const groupedItems = reactive([
   {
@@ -87,7 +93,8 @@ function handleItemClick(item) {
 
 onMounted(async () => {
   const res = await getUserInfo()
-  console.log('res',res);
+  
+  console.log('主页验证登录',res);
   userInfo.name = res.data.nickName
   userInfo.avatar = res.data.avatarFilePath
 })
@@ -113,10 +120,26 @@ onMounted(async () => {
   margin-right: 12px;
 }
 
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
 .username {
   font-weight: 600;
   font-size: 18px;
   color: #333;
+}
+
+.env-badge {
+  display: inline-block;
+  background-color: #ff9800;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+  align-self: flex-start;
 }
 
 /* 你的其他样式保持不变 */

@@ -12,19 +12,47 @@
       <view class="extra">
         <text class="forgot" @click="onForgotPassword">忘记密码?</text>
       </view>
+
+       <!-- 环境切换区域 -->
+       <view class="env-switch" @click="onSwitchEnv">
+        <text class="env-text">当前环境: {{ currentEnvName }}</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { login } from '@/services/auth'
-import { baseURL } from '@/services/request'
+import { baseURL, setBaseURL, ENV_CONFIG } from '@/services/request'
+
 const form = ref({
   mobile: 'admin',
   password: '123456',
 })
+
+const currentEnvUrl = ref(baseURL)
+
+const currentEnvName = computed(() => {
+  return currentEnvUrl.value === ENV_CONFIG.dev ? '测试环境 (Dev)' : '正式环境 (Prod)'
+})
+
+const onSwitchEnv = () => {
+  uni.showActionSheet({
+    itemList: ['正式环境 (Prod)', '测试环境 (Dev)'],
+    success: (res) => {
+      if (res.tapIndex === 0) {
+        setBaseURL(ENV_CONFIG.prod)
+        currentEnvUrl.value = ENV_CONFIG.prod
+      } else {
+        setBaseURL(ENV_CONFIG.dev)
+        currentEnvUrl.value = ENV_CONFIG.dev
+      }
+      uni.showToast({ title: '已切换环境', icon: 'none' })
+    }
+  })
+}
 
 const onLogin = async () => {
   if (!form.value.mobile || !form.value.password) {
@@ -43,8 +71,8 @@ const onLogin = async () => {
     success: (res) => {
       console.log('res', res);
       if (res.data.success) {
-        const setCookie = res.header['Set-Cookie'];
-        console.log('Set-Cookie:', setCookie);
+        const setCookie = res.cookies[0];
+        console.log('Set-Cookie:', setCookie,res);
         // 存入本地缓存
         if (setCookie) {
           uni.setStorageSync('cookie', setCookie);
@@ -144,5 +172,17 @@ const onForgotPassword = () => {
   color: #888;
   font-size: 24rpx;
   text-decoration: underline;
+}
+
+.env-switch {
+  margin-top: 40rpx;
+  text-align: center;
+  padding-top: 20rpx;
+  border-top: 1px solid #eee;
+}
+
+.env-text {
+  color: #666;
+  font-size: 26rpx;
 }
 </style>
