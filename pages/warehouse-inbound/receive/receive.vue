@@ -8,7 +8,7 @@
           type="text"
           placeholder="请扫描商品条码，回车确认"
           @confirm="onConfirm"
-          focus
+          :focus="inputFocus"
           class="input"
         />
         <uni-icons
@@ -50,11 +50,13 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, nextTick } from "vue";
 import { getReceiveScan,receiveSubmit } from '@/services/warehouse-inbound'
 const barcodeInput = ref("");
 const list = ref([]);
 const loading = ref(false);
+const inputFocus = ref(true);
+
 function removeItem(barcode) {
   list.value = list.value.filter((item) => item.barcode !== barcode);
   uni.showToast({ title: "已删除", icon: "none" });
@@ -79,13 +81,15 @@ async function handleScan(barcode) {
   // 条码重复判断
   if (list.value.some((item) => item.barcode === barcode)) {
     uni.showToast({ title: "该条码已存在！", icon: "none" });
+    barcodeInput.value = "";
+    reFocus();
     return;
   }
 
   try {
     // 调用真实接口
     const res = await getReceiveScan(barcode);
-console.log('扫描快递单号res',res);
+    console.log('扫描快递单号res',res);
     if (res.data === "WMS_RECEIVE_SCAN_UNKNOWN_LOGISTICS_CODE") {
       uni.showToast({ title: "未知物流", icon: "none" });
       list.value.unshift({ name: "未知物流", barcode, type: 0 });
@@ -100,13 +104,25 @@ console.log('扫描快递单号res',res);
   } catch (e) {
 	  console.log('err',e);
     uni.showToast({ title: "请求失败", icon: "none" });
+  } finally {
+    barcodeInput.value = "";
+    reFocus();
   }
+}
+
+function reFocus() {
+  inputFocus.value = false;
+  nextTick(() => {
+    inputFocus.value = true;
+  });
 }
 
 function onConfirm() {
   if (barcodeInput.value.trim()) {
     handleScan(barcodeInput.value.trim());
     barcodeInput.value = "";
+  } else {
+    reFocus();
   }
 }
 

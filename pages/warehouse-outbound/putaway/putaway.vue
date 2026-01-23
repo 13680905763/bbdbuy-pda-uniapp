@@ -49,7 +49,7 @@
           input-border
           clearable
           maxlength="50"
-       
+          :focus="packageFocus"
         />
 		<uni-icons
 		  type="scan"
@@ -105,6 +105,7 @@ const shelfCode = ref("");
 const packageInput = ref("");
 const packageList = ref([]);
 const loading = ref(false);
+const packageFocus = ref(false); // 新增：控制包裹输入框焦点
 
 const shelfInputRef = ref(null);
 const packageInputRef = ref(null);
@@ -152,20 +153,21 @@ const onShelfConfirm =async () => {
   shelfCode.value = val;
   shelfInput.value = "";
   // 聚焦包裹输入框
- //  await nextTick(() => {
- //    // 这里的代码会在 DOM 更新后执行
-	// packageInputRef.value?.focus();
- //  });
-
+  reFocusPackage();
 };
 
 const onPackageConfirm = async () => {
   const val = packageInput.value.trim();
-  if (!val) return;
+  if (!val) {
+      packageInput.value = "";
+      reFocusPackage();
+      return;
+  }
 
   if (packageList.value.find((item) => item.packageCode === val)) {
     uni.showToast({ title: "该包裹已扫描", icon: "none" });
     packageInput.value = "";
+    reFocusPackage();
     return;
   }
 
@@ -185,6 +187,15 @@ const onPackageConfirm = async () => {
     uni.showToast({ title: "读取包裹信息失败", icon: "none" });
   }
   packageInput.value = "";
+  reFocusPackage();
+};
+
+// 重新聚焦包裹输入框
+const reFocusPackage = () => {
+    packageFocus.value = false;
+    nextTick(() => {
+        packageFocus.value = true;
+    });
 };
 
 const deletePackage = (code) => {

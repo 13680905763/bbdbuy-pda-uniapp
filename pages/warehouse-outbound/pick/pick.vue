@@ -35,6 +35,30 @@
           @click="clearShelfCode"
         />
       </view>
+
+      <!-- 包裹扫码区域 -->
+      <view class="input-wrapper" v-if="shelfCode" style="margin-top: 10px;">
+        <input
+          class="input"
+          v-model="packageInput"
+          placeholder="请扫描包裹编号"
+          confirm-type="done"
+          @confirm="onPackageConfirm"
+          type="text"
+          input-border
+          clearable
+          maxlength="50"
+          :focus="packageFocus"
+        />
+        <uni-icons
+          type="scan"
+          size="28"
+          color="#f0700c"
+          class="scan-icon"
+          @click="scanPackageCode"
+        />
+      </view>
+
 	 <view v-if="packageList.length > 0" style="margin-top: 20rpx; overflow-x: auto; max-width: 100vw;">
 	   <uni-table
 	     border
@@ -53,19 +77,8 @@
 	      <uni-td align="center">{{ item.locationCode || '--' }}</uni-td>
 	      <uni-td align="center">{{ item.quantity || '--' }}</uni-td>
 	      <uni-td align="center">
-	        <template v-if="item.status === 0">
-	          <!-- 待拣货，显示扫码图标，点击触发扫码事件 -->
-	          <uni-icons
-	            type="scan"
-	            size="24"
-	            color="grey"
-	            style="cursor: pointer;"
-	            @click="handleScanPick(item)"
-	            title="点击扫码拣货"
-	          />
-	        </template>
-	        <template v-else-if="item.status === 1">
-	          <!-- 已拣货，显示打勾图标，不可点击 -->
+	        <template v-if="item.status === 1">
+	          <!-- 已拣货，显示打勾图标 -->
 	          <uni-icons
 	            type="checkmarkempty"
 	            size="24"
@@ -74,8 +87,8 @@
 	          />
 	        </template>
 	        <template v-else>
-	          <!-- 其他状态可以显示-- -->
-	          --
+	          <!-- 待拣货 -->
+	           <text style="color: #999;">待扫码</text>
 	        </template>
 	      </uni-td>
 	    </uni-tr>
@@ -105,30 +118,62 @@ const shelfCode = ref("");
 const packageList = ref([]);
 const loading = ref(false);
 
+const packageInput = ref(""); // 新增：包裹扫码输入框
+const packageFocus = ref(false); // 新增：控制包裹输入框焦点
+
 const shelfInputRef = ref(null);
-const handleScanPick = (item) => {
+
+// 新增：确认包裹扫码
+const onPackageConfirm = () => {
+  const code = packageInput.value.trim();
+  if (!code) {
+      uni.showToast({ title: "请输入包裹编号", icon: "none" });
+      packageInput.value = "";
+      reFocusPackage();
+      return;
+  }
+  
+  const targetItem = packageList.value.find(p => p.packageCode === code);
+  if (targetItem) {
+     if (targetItem.status === 1) {
+         uni.showToast({ title: "该包裹已拣货", icon: "none" });
+     } else {
+         targetItem.status = 1;
+         uni.showToast({ title: "拣货成功", icon: "success" });
+     }
+  } else {
+     uni.showToast({ title: "包裹不存在", icon: "none" });
+  }
+  packageInput.value = ""; // 清空输入框以便下次扫码
+  reFocusPackage();
+};
+
+// 重新聚焦包裹输入框
+const reFocusPackage = () => {
+    packageFocus.value = false;
+    nextTick(() => {
+        packageFocus.value = true;
+    });
+};
+
+// 新增：调用摄像头扫包裹码
+const scanPackageCode = () => {
   uni.scanCode({
     success: (res) => {
-      const scannedCode = res.result || "";
-      // 这里可以校验 scannedCode 和 item.packageCode 是否匹配
-      if (scannedCode === item.packageCode) {
-        uni.showToast({ title: "拣货成功", icon: "success" });
-        // 这里更新状态为已拣货，比如：
-        item.status = 1;
-        // 如果你的数据是响应式的，这里改了状态界面会自动更新
-      } else {
-        uni.showToast({ title: "条码不匹配", icon: "none" });
-      }
+      packageInput.value = res.result || "";
+      onPackageConfirm();
     },
     fail() {
       uni.showToast({ title: "扫码失败", icon: "none" });
     },
   });
 };
+
 // 清空拣货单号
 const clearShelfCode = async () => {
   shelfCode.value = "";
   packageList.value = [];
+  packageInput.value = ""; // 清空包裹输入
   // await nextTick(() => {
   //   shelfInputRef.value?.focus();
   // });
@@ -176,6 +221,7 @@ const onShelfConfirm = async () => {
 		  }
 	  }));
       shelfInput.value = "";
+      reFocusPackage();
     } else {
       uni.showToast({ title: res?.msg || "未找到拣货单信息", icon: "none" });
     }

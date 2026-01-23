@@ -22,6 +22,10 @@
         </view>
       </view>
     </view>
+
+    <view class="footer">
+      <text>当前版本v1.2.2，最后更新时间2026/01/22</text>
+    </view>
   </view>
 </template>
 
@@ -111,6 +115,16 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.content {
+}
+
+.footer {
+  text-align: center;
+  padding-top: 10px;
+  color: #999;
+  font-size: 12px;
 }
 
 .avatar {
