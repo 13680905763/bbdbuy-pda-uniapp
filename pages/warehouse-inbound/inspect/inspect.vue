@@ -310,22 +310,34 @@ const processUploads = async (files, serviceIdx, isSilent = false) => {
 	}
 };
 
-const runCameraLoop = async (serviceIdx) => {
-	try {
-		const res = await uni.chooseImage({
-			count: 1,
-			sizeType: ['original', 'compressed'],
-			sourceType: ['camera'],
-		});
+const runCameraLoop = async () => {
+	const files = [];
 
-		if (res.tempFiles && res.tempFiles.length > 0) {
-			// 后台上传
-			processUploads(res.tempFiles, serviceIdx, true);
-			// 递归调用相机
-			runCameraLoop(serviceIdx);
+	while (true) {
+		try {
+			const res = await uni.chooseImage({
+				count: 1,
+				sizeType: ['original', 'compressed'],
+				sourceType: ['camera'],
+			});
+
+			if (res.tempFiles && res.tempFiles.length > 0) {
+				files.push(...res.tempFiles);
+				continue;
+			}
+
+			return files;
+		} catch (err) {
+			const errMsg = err?.errMsg || '';
+			if (errMsg.includes('cancel') || errMsg.includes('fail')) {
+				return files;
+			}
+			console.log('Camera loop ended', err);
+			if (files.length > 0) {
+				return files;
+			}
+			throw err;
 		}
-	} catch (err) {
-		console.log('Camera loop ended', err);
 	}
 };
 
@@ -337,8 +349,10 @@ const handleTakePhoto = async (serviceIdx) => {
 		});
 
 		if (action.tapIndex === 0) {
-			// 拍照模式：连续拍照 + 后台上传
-			await runCameraLoop(serviceIdx);
+			// 拍照模式：先连续拍完，再统一上传
+			const tempFiles = await runCameraLoop(serviceIdx);
+			if (!tempFiles || tempFiles.length === 0) return;
+			await processUploads(tempFiles, serviceIdx, false);
 		} else {
 			// 相册模式：原有逻辑
 			const res = await uni.chooseImage({
