@@ -9,9 +9,15 @@ export const login = (data) =>
       'Content-Type': 'application/json',
     },
   })
+
 export const getUserInfo = () =>
   request({
     url: '/users/detail',
     method: 'GET',
-    
+  })
+
+export const getPublicKey = () =>
+  request({
+    url: '/users/public-key',
+    method: 'GET',
   })

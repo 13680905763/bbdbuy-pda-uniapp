@@ -6,7 +6,7 @@
         <input
           class="input"
           v-model="shelfInput"
-          placeholder="请扫描发货单号"
+          placeholder="请扫描国际物流单号"
           confirm-type="done"
           @confirm="onShelfConfirm"
           ref="shelfInputRef"
@@ -26,7 +26,7 @@
 
       <!-- 已扫描拣货单号 -->
       <view v-if="shelfCode" class="shelf-title">
-        拣货单号：{{ shelfCode }}
+        国际物流单号：{{ shelfCode }}
         <uni-icons
           type="close"
           size="20"
@@ -193,7 +193,7 @@ const scanShelfCode = () => {
 const onShelfConfirm = async () => {
   const val = shelfInput.value.trim();
   if (!val) {
-    uni.showToast({ title: "请输入发货单号", icon: "none" });
+    uni.showToast({ title: "请扫描国际物流单号", icon: "none" });
     return;
   }
   loading.value = true;
@@ -201,7 +201,7 @@ const onShelfConfirm = async () => {
     const res = await getSendScan(val); // 请求拣货单数据
 	console.log('res扫描',res);
     if (res && res.success ) {
-      shelfCode.value = val;
+      shelfCode.value = res.data.shipping.shippingCode;
       packageList.value = 
 		[ {
 			  packageCode:res.data.packingPackageCode,

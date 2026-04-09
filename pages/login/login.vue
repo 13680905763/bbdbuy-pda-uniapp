@@ -9,9 +9,6 @@
 
       <button class="login-button" @click="onLogin">登录</button>
 
-      <view class="extra">
-        <text class="forgot" @click="onForgotPassword">忘记密码?</text>
-      </view>
 
        <!-- 环境切换区域 -->
        <view class="env-switch" @click="onSwitchEnv">
@@ -24,12 +21,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { login } from '@/services/auth'
+import { login, getPublicKey } from '@/services/auth'
 import { baseURL, setBaseURL, ENV_CONFIG } from '@/services/request'
+import JSEncrypt from 'jsencrypt'
 
 const form = ref({
-  mobile: 'admin',
-  password: '123456',
+  mobile: '',
+  password: '',
 })
 
 const currentEnvUrl = ref(baseURL)
@@ -58,61 +56,60 @@ const onLogin = async () => {
   if (!form.value.mobile || !form.value.password) {
     return uni.showToast({ title: '请输入手机号和密码', icon: 'none' })
   }
-  uni.request({
-    url: baseURL + '/users/login',
-    method: 'POST',
-    data: form.value,
-    header: {
-      'Content-Type': 'application/json',
-      'X-Language': 'en',
-      'X-Currency': 'USD',
-      'X-Timezone': 'Asia/Shanghai',
-    },
-    success: (res) => {
-      console.log('res', res);
-      if (res.data.success) {
-        const setCookie = res.cookies[0];
-        console.log('Set-Cookie:', setCookie,res);
-        // 存入本地缓存
-        if (setCookie) {
-          uni.setStorageSync('cookie', setCookie);
-          uni.showToast({ title: '登录成功', icon: 'success' });
-          uni.reLaunch({ url: '/pages/index/index' })
-        }
-      } else {
-        uni.showToast({
-          title: res.data.msg,
-          icon: 'none',
-        });
+  try {
+    // 1. 从后端获取公钥
+    const publicKeyRes = await getPublicKey();
+
+    const finalValues = { ...form.value };
+
+    // 2. 用公钥加密用户名和密码
+    if (publicKeyRes?.success && publicKeyRes?.data) {
+      const encrypt = new JSEncrypt();
+      let key = publicKeyRes.data;
+      
+      // 处理公钥格式：如果不是 PEM 格式，补全 PEM 头部并确保换行
+      if (!key.includes('-----BEGIN PUBLIC KEY-----')) {
+        key = `-----BEGIN PUBLIC KEY-----\n${key}\n-----END PUBLIC KEY-----`;
       }
-    },
-    fail: (err) => {
+      
+      encrypt.setPublicKey(key);
+
+      const encryptedMobile = encrypt.encrypt(form.value.mobile);
+      const encryptedPassword = encrypt.encrypt(form.value.password);
+
+      if (encryptedMobile && encryptedPassword) {
+        finalValues.mobile = encryptedMobile;
+        finalValues.password = encryptedPassword;
+      } else {
+        uni.showToast({ title: '加密失败，请检查公钥格式', icon: 'none' });
+        return;
+      }
+    }
+
+    // 3. 提交加密后的数据到登录接口
+    const res = await login(finalValues);
+    console.log('登录响应:', res);
+
+    if (res.success) {
+      uni.showToast({ title: '登录成功', icon: 'success' });
+      // 成功跳转
+      uni.reLaunch({ url: '/pages/index/index' })
+    } else {
       uni.showToast({
-        title: '网络异常',
+        title: res.msg || '登录失败',
         icon: 'none',
       });
-      reject(err);
-    },
-  });
-
-
-
-
-
-  //   // 示例登录请求，可替换为你实际的登录接口
-  //   const res =   await login(form.value)
-  // console.log('res',res);
-  //   if (res.success) {
-  //     uni.showToast({ title: '登录成功', icon: 'success' })
-  //     // uni.reLaunch({ url: '/pages/index/index' })
-  //   } else {
-  //     uni.showToast({ title: res.data.message || '登录失败', icon: 'none' })
-  //   }
+    }
+  } catch (error) {
+    console.error("提交异常:", error);
+    uni.showToast({
+      title: '网络异常或服务错误',
+      icon: 'none',
+    });
+  }
 }
 
-const onForgotPassword = () => {
-  uni.showToast({ title: '请联系管理员重置密码', icon: 'none' })
-}
+
 </script>
 
 <style scoped>

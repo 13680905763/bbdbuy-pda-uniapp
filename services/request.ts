@@ -1,5 +1,5 @@
 export const ENV_CONFIG = {
-  prod: 'https://admin.bbdbuy1.com/api',
+  prod: 'https://wms.bbdbuy1.com/api',
   dev: 'https://dev.bbdbuy1.com/admin-api'
 }
 
@@ -12,7 +12,7 @@ export const setBaseURL = (url: string) => {
 
 export function request<T>(options: UniApp.RequestOptions): Promise<T> {
 	 const cookie = uni.getStorageSync('cookie') || '';
-	 console.log('cookie',cookie);
+	 // console.log('cookie',cookie);
 	 uni.showLoading({ title: '加载中...', mask: true });
   return new Promise((resolve, reject) => {
     uni.request({
@@ -28,7 +28,13 @@ export function request<T>(options: UniApp.RequestOptions): Promise<T> {
 		},
       success: (res) => {
 		  uni.hideLoading();
-		  console.log('res',res);
+		  console.log('接口 ',baseURL + options.url,{...options},res);
+          // ✅ 自动保存 Cookie
+          const setCookie = (res.cookies && res.cookies[0]) || (res.header && res.header['Set-Cookie']);
+          if (setCookie) {
+            console.log('Found Set-Cookie:', setCookie);
+            uni.setStorageSync('cookie', setCookie);
+          }
         if (res.statusCode === 200) {
           resolve(res.data as T)
         } else if (res.statusCode === 500) {

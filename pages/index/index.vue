@@ -23,8 +23,9 @@
       </view>
     </view>
 
-    <view class="footer">
-      <text>当前版本v1.2.2，最后更新时间2026/01/22</text>
+    <view class="footer" @click="onCheckUpdate">
+      <text>当前版本 v{{ appVersion }}</text>
+      <text class="footer-hint">点击检查更新</text>
     </view>
   </view>
 </template>
@@ -33,7 +34,9 @@
 import { reactive, ref, onMounted, computed } from 'vue'
 import { getUserInfo } from '../../services/auth'
 import { baseURL, ENV_CONFIG } from '@/services/request'
-// 模拟接口，真实替换成你项目中的接口调用
+// import { checkUpdate } from '@/utils/update.js' // TODO: 后端接口就绪后取消注释
+
+const appVersion = ref('--')
 
 
 const userInfo = reactive({
@@ -95,12 +98,32 @@ function handleItemClick(item) {
 
 
 
+// 手动检查更新 —— 后端接口就绪后取消注释
+const onCheckUpdate = () => {
+  // // #ifdef APP-PLUS
+  // checkUpdate({ silent: false, showProgress: true })
+  // // #endif
+  // #ifndef APP-PLUS
+  uni.showToast({ title: '仅 App 端支持热更新', icon: 'none' })
+  // #endif
+}
+
 onMounted(async () => {
   const res = await getUserInfo()
   
   console.log('主页验证登录',res);
   userInfo.name = res.data.nickName
   userInfo.avatar = res.data.avatarFilePath
+  
+  // 获取真实版本号
+  // #ifdef APP-PLUS
+  plus.runtime.getProperty(plus.runtime.appid, (info) => {
+    appVersion.value = info.version || '--'
+  })
+  // #endif
+  // #ifndef APP-PLUS
+  appVersion.value = '1.0.0 (H5)'
+  // #endif
 })
 </script>
 
@@ -125,6 +148,16 @@ onMounted(async () => {
   padding-top: 10px;
   color: #999;
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.footer-hint {
+  color: #f0700c;
+  font-size: 11px;
+  margin-top: 4px;
+  text-decoration: underline;
 }
 
 .avatar {
